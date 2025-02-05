@@ -13,6 +13,8 @@ def setupLogging():
     logger.addHandler(console_handler)
 
 
+api: PyiCloudService = None
+
 def authenticate():
     # Load environment variables from .env file
     load_dotenv()
@@ -49,27 +51,39 @@ def authenticate():
     else:
         print("No two-factor authentication required")
 
-
-def fetch_photos():
-    # Get the most recent 10 photos
-
-    # TypeError: 'PhotoAlbum' object is not subscriptable
-    photos = api.photos.all
-    recent_photos = photos[:10]
-
-    # Create a directory to save the photos
-    os.makedirs('downloaded_photos', exist_ok=True)
-
-    # Download the photos
-    for photo in recent_photos:
-        photo_name = photo.filename
-        photo_data = photo.download().raw
-        with open(f'downloaded_photos/{photo_name}', 'wb') as file:
-            file.write(photo_data)
-        print(f'Downloaded {photo_name}')
-
-    print("Downloaded recent 10 photos.")
+    return api
 
 setupLogging()
-authenticate()
-fetch_photos()
+api = authenticate()
+photos = api.photos.all.photos
+
+firstPhoto = next(photos, None)
+
+print("Downloading first photo...")
+if firstPhoto:
+    photo_name = firstPhoto.filename
+    response = firstPhoto.download()
+
+    if response.status_code == 200:
+        # Get the raw photo data (bytes)
+        photo_data = response.content
+        
+        home_directory = os.path.expanduser('~')
+        file_path = os.path.join(home_directory, photo_name)
+
+        with open(file_path, 'wb') as file:
+            file.write(photo_data)
+            print(f'Downloaded {photo_name} to {file_path}')
+
+    else:
+        # Handle failed request (e.g., 404 or 500)
+        raise Exception(f"Failed to download photo. Status code: {response.status_code}")
+
+
+
+    
+   
+else:
+    print("No photos found.")
+
+#  fetch_photos()
